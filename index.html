@@ -251,6 +251,11 @@
 </main>
 
 <footer>hecho por Mo — arte digital, juegos y magia</footer>
+<div id="weatherHud" style="position:fixed; left:16px; bottom:14px; z-index:5; display:flex; align-items:center; gap:8px; color:#fff; background:rgba(20,10,40,0.4); backdrop-filter:blur(6px); padding:6px 14px; border-radius:999px; font-size:13px; font-family:inherit; pointer-events:none;">
+  <span id="weatherIcon" style="font-size:16px;">🌙</span>
+  <span id="weatherTemp">-- °C</span>
+  <span style="opacity:.65;">Córdoba</span>
+</div>
 
 <script>
 (() => {
@@ -268,24 +273,30 @@
   }
   window.addEventListener('resize', resize);
 
-  // -------------------------------------------------------------------
-  // Partículas de clima: reemplazan a las "estrellas" originales.
-  // Color según temperatura (blanco = frío, amarillo = calor, rojo =
-  // mucho calor) y movimiento según viento (suave sin viento, fuerte con
-  // viento), usando el clima en vivo de Córdoba, Argentina (Open-Meteo,
-  // gratis y sin api key).
-  // -------------------------------------------------------------------
   const WEATHER_LAT = -31.4201;
   const WEATHER_LON = -64.1888;
 
-  // Estado del clima. Arranca con valores neutros hasta que llegue el
-  // primer dato real; si el pedido falla, se queda así (degrada bien).
-  const weather = { temp: 20, windSpeed: 0, windDir: 0 };
+  const weather = { temp: 20, windSpeed: 0, windDir: 0, code: 0, condition: 'clear' };
+
+  const hudTemp = document.getElementById('weatherTemp');
+  const hudIcon = document.getElementById('weatherIcon');
+
+  function codeToCondition(code){
+    if (code === 0 || code === 1) return 'clear';
+    if ([2,3,45,48].includes(code)) return 'cloudy';
+    return 'rain';
+  }
+
+  function updateHud(){
+    if (!hudTemp || !hudIcon) return;
+    hudTemp.textContent = Math.round(weather.temp) + '°C';
+    hudIcon.textContent = weather.condition === 'clear' ? '☀️' : weather.condition === 'cloudy' ? '☁️' : '🌧️';
+  }
 
   function fetchWeather(){
     const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + WEATHER_LAT +
       '&longitude=' + WEATHER_LON +
-      '&current=temperature_2m,wind_speed_10m,wind_direction_10m&timezone=auto';
+      '&current=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code&timezone=auto';
     fetch(url)
       .then((r) => r.json())
       .then((data) => {
@@ -294,13 +305,17 @@
         if (typeof c.temperature_2m === 'number') weather.temp = c.temperature_2m;
         if (typeof c.wind_speed_10m === 'number') weather.windSpeed = c.wind_speed_10m;
         if (typeof c.wind_direction_10m === 'number') weather.windDir = c.wind_direction_10m;
+        if (typeof c.weather_code === 'number') {
+          weather.code = c.weather_code;
+          weather.condition = codeToCondition(c.weather_code);
+        }
+        updateHud();
       })
       .catch(() => { /* sin conexión: se queda con los valores neutros */ });
   }
   fetchWeather();
-  setInterval(fetchWeather, 15 * 60 * 1000); // actualiza cada 15 minutos
+  setInterval(fetchWeather, 15 * 60 * 1000);
 
-  // Blanco con frío, amarillo con calor, rojo con mucho calor.
   function lerp(a, b, t){ return a + (b - a) * t; }
   function tempColor(tempC){
     const white = [255, 255, 255];
@@ -321,13 +336,22 @@
     return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')';
   }
 
-  // Vector de movimiento a partir del viento: dirección meteorológica
-  // (de dónde viene el viento) -> hacia dónde empuja en pantalla.
   function windVector(speedKmh, dirDeg){
     const towardRad = ((dirDeg + 180) % 360) * Math.PI / 180;
-    const px = Math.min(speedKmh, 60) / 60 * 2.6; // a más viento, más rápido (tope ~2.6px/frame)
+    const px = Math.min(speedKmh, 60) / 60 * 2.6;
     return { vx: Math.sin(towardRad) * px, vy: -Math.cos(towardRad) * px };
   }
+
+  const mouse = { x: -9999, y: -9999, active: false };
+  window.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true;
+  });
+  window.addEventListener('mouseleave', () => { mouse.active = false; });
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches[0]){
+      mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; mouse.active = true;
+    }
+  }, { passive: true });
 
   const particles = [];
   function initParticles(){
@@ -338,7 +362,9 @@
         x: Math.random() * W,
         y: Math.random() * H,
         r: Math.random() * 1.6 + 0.4,
-        tw: Math.random() * Math.PI * 2
+        tw: Math.random() * Math.PI * 2,
+        vx: 0,
+        vy: 0
       });
     }
   }
@@ -349,6 +375,76 @@
     { cx:0.82, cy:0.18, r:0.34, c:'rgba(95,242,224,0.14)', sx:0.03, sy:0.04, p:2 },
     { cx:0.5, cy:0.85, r:0.5, c:'rgba(109,47,176,0.26)', sx:0.03, sy:0.02, p:4 },
   ];
+
+  const clouds = [];
+  function initClouds(){
+    clouds.length = 0;
+    for (let i = 0; i < 6; i++){
+      clouds.push({
+        x: Math.random() * W,
+        y: Math.random() * H * 0.45,
+        r: (Math.random() * 0.5 + 0.5) * Math.max(W, H) * 0.16,
+        speed: Math.random() * 0.15 + 0.05
+      });
+    }
+  }
+  window.addEventListener('resize', initClouds);
+
+  const raindrops = [];
+  function initRain(){
+    raindrops.length = 0;
+    const count = Math.floor((W * H) / 4500);
+    for (let i = 0; i < count; i++){
+      raindrops.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        len: Math.random() * 10 + 8,
+        speed: Math.random() * 3 + 4
+      });
+    }
+  }
+  window.addEventListener('resize', initRain);
+
+  function drawSun(t){
+    const sx = W * 0.82, sy = H * 0.2;
+    const pulse = 1 + Math.sin(t * 0.0006) * 0.04;
+    const r = Math.max(W, H) * 0.16 * pulse;
+    const rg = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    rg.addColorStop(0, 'rgba(255,221,140,0.55)');
+    rg.addColorStop(1, 'rgba(255,221,140,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawClouds(){
+    for (const c of clouds){
+      c.x += c.speed * (reduceMotion ? 0.2 : 1);
+      if (c.x - c.r > W) c.x = -c.r;
+      const rg = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+      rg.addColorStop(0, 'rgba(220,220,235,0.16)');
+      rg.addColorStop(1, 'rgba(220,220,235,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  function drawRain(wind){
+    ctx.strokeStyle = 'rgba(180,200,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const d of raindrops){
+      const dx = wind.vx * 3;
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + dx, d.y + d.len);
+      if (!reduceMotion){
+        d.y += d.speed * 2.2;
+        d.x += dx * 0.3;
+      }
+      if (d.y > H) { d.y = -d.len; d.x = Math.random() * W; }
+      if (d.x < -20) d.x = W + 20; else if (d.x > W + 20) d.x = -20;
+    }
+    ctx.stroke();
+  }
 
   function frame(t){
     const g = ctx.createLinearGradient(0,0,0,H);
@@ -364,8 +460,13 @@
       ctx.fillStyle = rg; ctx.fillRect(0,0,W,H);
     }
 
-    const particleColor = tempColor(weather.temp);
     const wind = windVector(weather.windSpeed, weather.windDir);
+
+    if (weather.condition === 'clear') drawSun(t);
+    else if (weather.condition === 'cloudy') drawClouds();
+    else drawRain(wind);
+
+    const particleColor = tempColor(weather.temp);
 
     for (const s of particles){
       const alpha = reduceMotion ? 0.55 : 0.3 + 0.5*Math.abs(Math.sin(t*0.0016 + s.tw));
@@ -374,9 +475,25 @@
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
 
       if (!reduceMotion){
-        // Deriva suave siempre presente + empuje del viento (fuerte si hay viento).
-        s.x += wind.vx + Math.sin(t*0.0007 + s.tw) * 0.12;
-        s.y += wind.vy + Math.cos(t*0.0006 + s.tw) * 0.12;
+        let ax = wind.vx + Math.sin(t*0.0007 + s.tw) * 0.12;
+        let ay = wind.vy + Math.cos(t*0.0006 + s.tw) * 0.12;
+
+        if (mouse.active){
+          const dx = mouse.x - s.x, dy = mouse.y - s.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          const radius = 220;
+          if (dist < radius && dist > 0.01){
+            const pull = (1 - dist / radius) * 0.9;
+            ax += (dx / dist) * pull;
+            ay += (dy / dist) * pull;
+          }
+        }
+
+        s.vx = s.vx * 0.9 + ax * 0.1;
+        s.vy = s.vy * 0.9 + ay * 0.1;
+        s.x += s.vx;
+        s.y += s.vy;
+
         if (s.x < -4) s.x = W + 4; else if (s.x > W + 4) s.x = -4;
         if (s.y < -4) s.y = H + 4; else if (s.y > H + 4) s.y = -4;
       }
@@ -385,7 +502,7 @@
     requestAnimationFrame(frame);
   }
 
-  resize(); initParticles();
+  resize(); initParticles(); initClouds(); initRain();
   requestAnimationFrame(frame);
 })();
 </script>
