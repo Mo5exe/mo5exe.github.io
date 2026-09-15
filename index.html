@@ -6,19 +6,19 @@
 
 <style>
   :root{
-    --ink-deep:   #150a2e;
-    --ink-mid:    #3a1a68;
+    --ink-deep:   #f3ecfc;
+    --ink-mid:    #e0cdf5;
     --violet:     #6d2fb0;
-    --magenta:    #ff4fd8;
-    --gold:       #ffd166;
-    --cyan:       #5ff2e0;
+    --magenta:    #c2168a;
+    --gold:       #b8790a;
+    --cyan:       #0b8f83;
     --porcelain:  #f4ecdd;
-    --mist:       #6a5a8a;
+    --mist:       #8577a3;
 
-    --text-bright: #fbf3ff;
-    --text-soft:   #d9c9f0;
-    --card-bg:     rgba(29, 13, 56, 0.6);
-    --card-border: rgba(255, 209, 102, 0.28);
+    --text-bright: #2a1147;
+    --text-soft:   #5c4b7d;
+    --card-bg:     rgba(255, 255, 255, 0.55);
+    --card-border: rgba(190, 130, 20, 0.4);
   }
 
   *{ box-sizing: border-box; }
@@ -55,7 +55,7 @@
     letter-spacing: .32em;
     text-transform: uppercase;
     color: var(--cyan);
-    text-shadow: 0 0 14px rgba(95,242,224,.6);
+    text-shadow: 0 0 10px rgba(11,143,131,.35);
     margin: 0 0 14px;
   }
 
@@ -70,7 +70,7 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    filter: drop-shadow(0 0 34px rgba(255,79,216,.3));
+    filter: drop-shadow(0 0 28px rgba(194,22,138,.22));
     text-wrap: balance;
   }
 
@@ -100,7 +100,7 @@
     text-align: center;
     padding: clamp(28px, 4vw, 36px) clamp(18px, 3vw, 24px) clamp(24px, 3.5vw, 30px);
     border-radius: 26px;
-    background: linear-gradient(165deg, rgba(58,26,104,.6), rgba(21,10,46,.75));
+    background: linear-gradient(165deg, rgba(255,255,255,.65), rgba(226,211,247,.85));
     border: 1px solid var(--card-border);
     backdrop-filter: blur(8px);
     text-decoration: none;
@@ -109,8 +109,8 @@
   }
   a.portal:hover, a.portal:focus-visible{
     transform: translateY(-6px);
-    border-color: rgba(255,209,102,.6);
-    box-shadow: 0 18px 46px rgba(255,79,216,.18);
+    border-color: rgba(184,121,10,.55);
+    box-shadow: 0 18px 46px rgba(194,22,138,.16);
     outline: none;
   }
   .portal.locked{
@@ -148,7 +148,7 @@
     display:flex; align-items:center; justify-content:center;
   }
   .portal.locked .orb-inner{
-    background: conic-gradient(from 210deg, var(--mist), #3a2f55, var(--mist));
+    background: conic-gradient(from 210deg, var(--mist), #d9cdee, var(--mist));
   }
 
   .portal h2{
@@ -171,8 +171,8 @@
     border-radius: 999px;
     margin-top: 4px;
   }
-  .status.live{ background: rgba(255,209,102,.18); color: var(--gold); border: 1px solid rgba(255,209,102,.4); }
-  .status.soon{ background: rgba(217,201,240,.08); color: var(--text-soft); border: 1px solid rgba(217,201,240,.18); }
+  .status.live{ background: rgba(184,121,10,.16); color: var(--gold); border: 1px solid rgba(184,121,10,.4); }
+  .status.soon{ background: rgba(93,66,140,.08); color: var(--text-soft); border: 1px solid rgba(93,66,140,.24); }
 
   footer{
     position: relative;
@@ -318,27 +318,27 @@
 
   function lerp(a, b, t){ return a + (b - a) * t; }
   function tempColor(tempC){
-    const white = [255, 255, 255];
-    const yellow = [255, 209, 102];
-    const red = [255, 79, 79];
+    const cold = [58, 99, 235];
+    const warmC = [255, 149, 43];
+    const hot = [230, 43, 43];
     let c;
     if (tempC <= 10){
-      c = white;
+      c = cold;
     } else if (tempC < 25){
       const t = (tempC - 10) / 15;
-      c = [lerp(white[0], yellow[0], t), lerp(white[1], yellow[1], t), lerp(white[2], yellow[2], t)];
+      c = [lerp(cold[0], warmC[0], t), lerp(cold[1], warmC[1], t), lerp(cold[2], warmC[2], t)];
     } else if (tempC < 34){
       const t = (tempC - 25) / 9;
-      c = [lerp(yellow[0], red[0], t), lerp(yellow[1], red[1], t), lerp(yellow[2], red[2], t)];
+      c = [lerp(warmC[0], hot[0], t), lerp(warmC[1], hot[1], t), lerp(warmC[2], hot[2], t)];
     } else {
-      c = red;
+      c = hot;
     }
     return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')';
   }
 
   function windVector(speedKmh, dirDeg){
     const towardRad = ((dirDeg + 180) % 360) * Math.PI / 180;
-    const px = Math.min(speedKmh, 60) / 60 * 2.6;
+    const px = Math.min(speedKmh, 60) / 60 * 3.4;
     return { vx: Math.sin(towardRad) * px, vy: -Math.cos(towardRad) * px };
   }
 
@@ -361,7 +361,7 @@
       particles.push({
         x: Math.random() * W,
         y: Math.random() * H,
-        r: Math.random() * 1.6 + 0.4,
+        r: Math.random() * 3.5 + 2,
         tw: Math.random() * Math.PI * 2,
         vx: 0,
         vy: 0
@@ -371,20 +371,20 @@
   window.addEventListener('resize', initParticles);
 
   const blobs = [
-    { cx:0.18, cy:0.22, r:0.4, c:'rgba(255,79,216,0.18)', sx:0.04, sy:0.03, p:0 },
-    { cx:0.82, cy:0.18, r:0.34, c:'rgba(95,242,224,0.14)', sx:0.03, sy:0.04, p:2 },
-    { cx:0.5, cy:0.85, r:0.5, c:'rgba(109,47,176,0.26)', sx:0.03, sy:0.02, p:4 },
+    { cx:0.18, cy:0.22, r:0.4, c:'rgba(214,33,150,0.12)', sx:0.04, sy:0.03, p:0 },
+    { cx:0.82, cy:0.18, r:0.34, c:'rgba(15,150,140,0.10)', sx:0.03, sy:0.04, p:2 },
+    { cx:0.5, cy:0.85, r:0.5, c:'rgba(109,47,176,0.14)', sx:0.03, sy:0.02, p:4 },
   ];
 
   const clouds = [];
   function initClouds(){
     clouds.length = 0;
-    for (let i = 0; i < 6; i++){
+    for (let i = 0; i < 5; i++){
       clouds.push({
         x: Math.random() * W,
-        y: Math.random() * H * 0.45,
-        r: (Math.random() * 0.5 + 0.5) * Math.max(W, H) * 0.16,
-        speed: Math.random() * 0.15 + 0.05
+        y: H * 0.1 + Math.random() * H * 0.3,
+        r: (Math.random() * 0.35 + 0.28) * Math.max(W, H) * 0.14,
+        speed: Math.random() * 0.18 + 0.06
       });
     }
   }
@@ -393,12 +393,12 @@
   const raindrops = [];
   function initRain(){
     raindrops.length = 0;
-    const count = Math.floor((W * H) / 4500);
+    const count = Math.floor((W * H) / 4000);
     for (let i = 0; i < count; i++){
       raindrops.push({
         x: Math.random() * W,
         y: Math.random() * H,
-        len: Math.random() * 10 + 8,
+        len: Math.random() * 12 + 10,
         speed: Math.random() * 3 + 4
       });
     }
@@ -406,38 +406,51 @@
   window.addEventListener('resize', initRain);
 
   function drawSun(t){
-    const sx = W * 0.82, sy = H * 0.2;
-    const pulse = 1 + Math.sin(t * 0.0006) * 0.04;
-    const r = Math.max(W, H) * 0.16 * pulse;
-    const rg = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
-    rg.addColorStop(0, 'rgba(255,221,140,0.55)');
-    rg.addColorStop(1, 'rgba(255,221,140,0)');
-    ctx.fillStyle = rg;
+    const sx = W * 0.82, sy = H * 0.18;
+    const pulse = 1 + Math.sin(t * 0.0006) * 0.05;
+    const rOuter = Math.max(W, H) * 0.22 * pulse;
+    const rCore = Math.max(W, H) * 0.05;
+
+    const outer = ctx.createRadialGradient(sx, sy, 0, sx, sy, rOuter);
+    outer.addColorStop(0, 'rgba(255,190,80,0.55)');
+    outer.addColorStop(1, 'rgba(255,190,80,0)');
+    ctx.fillStyle = outer;
     ctx.fillRect(0, 0, W, H);
+
+    const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, rCore);
+    core.addColorStop(0, 'rgba(255,224,140,0.9)');
+    core.addColorStop(1, 'rgba(255,224,140,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(sx, sy, rCore, 0, Math.PI * 2); ctx.fill();
   }
 
   function drawClouds(){
+    ctx.fillStyle = 'rgba(140,140,170,0.28)';
     for (const c of clouds){
       c.x += c.speed * (reduceMotion ? 0.2 : 1);
-      if (c.x - c.r > W) c.x = -c.r;
-      const rg = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-      rg.addColorStop(0, 'rgba(220,220,235,0.16)');
-      rg.addColorStop(1, 'rgba(220,220,235,0)');
-      ctx.fillStyle = rg;
-      ctx.fillRect(0, 0, W, H);
+      if (c.x - c.r * 2.4 > W) c.x = -c.r * 2.4;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r * 0.75, 0, Math.PI * 2);
+      ctx.arc(c.x + c.r * 0.8, c.y - c.r * 0.25, c.r * 0.9, 0, Math.PI * 2);
+      ctx.arc(c.x + c.r * 1.7, c.y, c.r * 0.7, 0, Math.PI * 2);
+      ctx.arc(c.x + c.r * 0.9, c.y + c.r * 0.2, c.r * 1.05, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
   function drawRain(wind){
-    ctx.strokeStyle = 'rgba(180,200,255,0.35)';
-    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(120,120,160,0.07)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(60,90,200,0.5)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     for (const d of raindrops){
       const dx = wind.vx * 3;
       ctx.moveTo(d.x, d.y);
       ctx.lineTo(d.x + dx, d.y + d.len);
       if (!reduceMotion){
-        d.y += d.speed * 2.2;
+        d.y += d.speed * 2.4;
         d.x += dx * 0.3;
       }
       if (d.y > H) { d.y = -d.len; d.x = Math.random() * W; }
@@ -447,9 +460,9 @@
   }
 
   function frame(t){
-    const g = ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,'#1b0e3a'); g.addColorStop(0.55,'#2c1354'); g.addColorStop(1,'#150a2e');
-    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#f4edfc'); g.addColorStop(0.55, '#e6d6f7'); g.addColorStop(1, '#d9c3f0');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
     for (const b of blobs){
       const cx = (b.cx + Math.sin(t*0.0002+b.p)*b.sx) * W;
@@ -469,7 +482,7 @@
     const particleColor = tempColor(weather.temp);
 
     for (const s of particles){
-      const alpha = reduceMotion ? 0.55 : 0.3 + 0.5*Math.abs(Math.sin(t*0.0016 + s.tw));
+      const alpha = reduceMotion ? 0.65 : 0.45 + 0.45*Math.abs(Math.sin(t*0.0016 + s.tw));
       ctx.globalAlpha = alpha;
       ctx.fillStyle = particleColor;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
@@ -481,21 +494,26 @@
         if (mouse.active){
           const dx = mouse.x - s.x, dy = mouse.y - s.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
-          const radius = 220;
+          const radius = 260;
           if (dist < radius && dist > 0.01){
-            const pull = (1 - dist / radius) * 0.9;
+            const pull = (1 - dist / radius) * 3.4;
             ax += (dx / dist) * pull;
             ay += (dy / dist) * pull;
           }
         }
 
-        s.vx = s.vx * 0.9 + ax * 0.1;
-        s.vy = s.vy * 0.9 + ay * 0.1;
+        s.vx = s.vx * 0.85 + ax * 0.18;
+        s.vy = s.vy * 0.85 + ay * 0.18;
+
+        const maxSpeed = 7;
+        const spd = Math.sqrt(s.vx*s.vx + s.vy*s.vy);
+        if (spd > maxSpeed){ s.vx = s.vx / spd * maxSpeed; s.vy = s.vy / spd * maxSpeed; }
+
         s.x += s.vx;
         s.y += s.vy;
 
-        if (s.x < -4) s.x = W + 4; else if (s.x > W + 4) s.x = -4;
-        if (s.y < -4) s.y = H + 4; else if (s.y > H + 4) s.y = -4;
+        if (s.x < -8) s.x = W + 8; else if (s.x > W + 8) s.x = -8;
+        if (s.y < -8) s.y = H + 8; else if (s.y > H + 8) s.y = -8;
       }
     }
     ctx.globalAlpha = 1;
