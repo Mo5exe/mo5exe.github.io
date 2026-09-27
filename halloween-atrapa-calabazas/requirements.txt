@@ -1,0 +1,13 @@
+# Vision por computadora / camara
+opencv-python>=4.8,<5
+
+# Seguimiento de manos (21 puntos por mano). Se fija <0.10.30 porque
+# a partir de esa serie MediaPipe elimino la API "mp.solutions" que
+# este juego usa (mp.solutions.hands, drawing_utils, etc.).
+mediapipe>=0.10.9,<0.10.30
+
+numpy>=1.24
+
+# Audio: se usa para reproducir los sonidos sintetizados del juego
+# (mezclador simple, permite superponer efectos con el sonido ambiente).
+sounddevice>=0.4,<0.6
