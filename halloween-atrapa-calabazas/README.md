@@ -1,7 +1,8 @@
 # Halloween: Atrapa Calabazas
 
 Juego de camara pensado para proyectar sobre una pared: usa tus manos frente
-a la camara (se ve como un **esqueleto de hueso** sobre fondo negro) para
+a la camara (se ven como un **esqueleto de huesos reales** -- gruesos,
+abultados en las articulaciones, blanco hueso -- sobre el fondo) para
 **atrapar calabazas**, **evitar murcielagos** y **al fantasma**, y **atrapar
 el sombrero de bruja magico** para conseguir un power-up.
 
@@ -27,10 +28,12 @@ el sombrero de bruja magico** para conseguir un power-up.
    - Las siguientes veces arranca directo, mucho mas rapido.
 3. Se abre primero una **pantalla de inicio** para elegir la velocidad
    (ver mas abajo). Esa pantalla solo aparece una vez, al arrancar.
-4. Despues se abre la ventana del juego: fondo negro con el **esqueleto de
-   tus manos** en blanco hueso, siguiendo tu movimiento en tiempo real. No
-   se muestra el video real de la camara, solo el esqueleto y el juego —
-   ideal para proyectar sin mostrar tu habitacion.
+4. Despues se abre la ventana del juego: fondo con el **esqueleto de huesos
+   de tus manos** (huesos gruesos y abultados en cada articulacion, no
+   lineas finas con puntos), en blanco hueso, siguiendo tu movimiento en
+   tiempo real. Distingue mano derecha ("D") e izquierda ("I")
+   automaticamente. No se muestra el video real de la camara, solo el
+   esqueleto y el juego — ideal para proyectar sin mostrar tu habitacion.
 
 ## Pantalla de inicio
 
@@ -67,8 +70,9 @@ Esta pantalla no vuelve a aparecer durante el juego proyectado.
   sapitos, pociones y humo verde de bruja** brotando del sombrero (con toda
   la pantalla tiñendose de verde un instante), con su propio sonido magico
   MAS una risa de bruja.
-- Cada vez que tus manos aparecen frente a la camara, suena un efecto de
-  fantasma como saludo.
+- Cada vez que moves una mano, cada tanto (un par de segundos) suena un
+  aullido real de fantasma (archivo `ghost_move.wav`, incluido). Si ese
+  archivo no esta, usa un aullido sintetizado como respaldo.
 - Todos los objetos que caen son un 20% mas grandes (de nuevo) sobre su
   tamano anterior — incluido el sombrero esta vez.
 - La velocidad de caida aumenta con el puntaje, para que se ponga mas
@@ -163,6 +167,7 @@ de referencia por mano y corre bien en CPU sin necesidad de GPU.
 - `game.py` — codigo del juego.
 - `background.jpg` — imagen de fondo de la escena.
 - `background_music.wav` — musica de fondo real (loop).
+- `ghost_move.wav` — aullido real de fantasma que suena al mover una mano.
 - `sprites/` — animaciones 3D de calabaza, fantasma, sombrero y vampirito
   (12 frames cada uno, con transparencia).
 - `requirements.txt` — dependencias de Python.

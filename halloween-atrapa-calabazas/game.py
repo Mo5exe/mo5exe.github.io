@@ -793,19 +793,116 @@ class Game:
 
 
 # ----------------------------------------------------------------------------
-# Esqueleto de mano (estilo hueso) dibujado sobre el lienzo de proyeccion
+# Esqueleto de mano (estilo hueso realista) dibujado sobre el lienzo de
+# proyeccion. Cada segmento se dibuja como un hueso real: mas ancho/abultado
+# en las puntas (epifisis) y mas angosto en el medio (diafisis), con un
+# nudillo redondeado en cada articulacion -- no lineas finas con puntos.
 # ----------------------------------------------------------------------------
-def draw_bone_skeleton(img, hand_landmarks, connections, width, height):
+
+# Radio "base" de cada nudillo, por indice de landmark de MediaPipe Hands
+# (0=muneca, 1-4=pulgar, 5-8=indice, 9-12=medio, 13-16=anular, 17-20=menique).
+# Los nudillos cercanos a la palma son mas grandes; las falanges se van
+# afinando hacia la punta de cada dedo, como en una mano real.
+_BONE_JOINT_SCALE = {
+    0: 1.35,
+    1: 1.15, 5: 1.15, 9: 1.15, 13: 1.10, 17: 1.05,
+    2: 1.00, 6: 1.00, 10: 1.00, 14: 0.95, 18: 0.90,
+    3: 0.85, 7: 0.85, 11: 0.80, 15: 0.75, 19: 0.70,
+    4: 0.62, 8: 0.62, 12: 0.58, 16: 0.55, 20: 0.50,
+}
+
+
+def _bone_joint_radius(idx):
+    return max(3, int(SKELETON_JOINT_RADIUS * _BONE_JOINT_SCALE.get(idx, 1.0)))
+
+
+def draw_bone_segment(img, p1, p2, r1, r2, color, outline_color, outline_pad=2):
+    """Dibuja un hueso real entre p1 y p2: abultado (radio r1/r2) en cada
+    punta, angosto en el medio, con un contorno oscuro y un brillo sutil
+    a lo largo del eje para dar sensacion de volumen 3D."""
+    p1f = np.array(p1, dtype=np.float32)
+    p2f = np.array(p2, dtype=np.float32)
+    d = p2f - p1f
+    length = float(np.hypot(d[0], d[1]))
+    p1i = (int(p1f[0]), int(p1f[1]))
+    p2i = (int(p2f[0]), int(p2f[1]))
+
+    if length < 1e-3:
+        r = max(r1, r2)
+        cv2.circle(img, p1i, r + outline_pad, outline_color, -1, cv2.LINE_AA)
+        cv2.circle(img, p1i, r, color, -1, cv2.LINE_AA)
+        return
+
+    dir_unit = d / length
+    perp = np.array([-dir_unit[1], dir_unit[0]], dtype=np.float32)
+
+    # diafisis (parte angosta del medio): mas fina que los nudillos de las
+    # puntas, dejando que los circulos de cada punta formen el "bulbo"
+    shaft_half = max(2.0, min(r1, r2) * 0.42)
+    inset1 = min(r1 * 0.6, length * 0.35)
+    inset2 = min(r2 * 0.6, length * 0.35)
+    a = p1f + dir_unit * inset1
+    b = p2f - dir_unit * inset2
+
+    def poly(pad):
+        return np.array([
+            a + perp * (shaft_half + pad),
+            b + perp * (shaft_half + pad),
+            b - perp * (shaft_half + pad),
+            a - perp * (shaft_half + pad),
+        ], dtype=np.int32)
+
+    # pasada de contorno (mas grande, color oscuro)
+    cv2.fillPoly(img, [poly(outline_pad)], outline_color, cv2.LINE_AA)
+    cv2.circle(img, p1i, r1 + outline_pad, outline_color, -1, cv2.LINE_AA)
+    cv2.circle(img, p2i, r2 + outline_pad, outline_color, -1, cv2.LINE_AA)
+
+    # pasada principal (hueso blanco)
+    cv2.fillPoly(img, [poly(0)], color, cv2.LINE_AA)
+    cv2.circle(img, p1i, r1, color, -1, cv2.LINE_AA)
+    cv2.circle(img, p2i, r2, color, -1, cv2.LINE_AA)
+
+    # brillo sutil a lo largo de un borde del hueso, da volumen 3D
+    light_offset = perp * (shaft_half * 0.5)
+    light_a = (a + light_offset).astype(int)
+    light_b = (b + light_offset).astype(int)
+    cv2.line(img, tuple(light_a), tuple(light_b), (255, 255, 255), 1, cv2.LINE_AA)
+
+    # sombra sutil del lado opuesto
+    shade_offset = -perp * (shaft_half * 0.55)
+    shade_a = (a + shade_offset).astype(int)
+    shade_b = (b + shade_offset).astype(int)
+    cv2.line(img, tuple(shade_a), tuple(shade_b), (150, 145, 150), 1, cv2.LINE_AA)
+
+
+def draw_bone_skeleton(img, hand_landmarks, connections, width, height, handedness_label=None):
+    """Dibuja la mano completa como un esqueleto de huesos reales (no lineas
+    finas con puntos), siguiendo el tracking de MediaPipe en tiempo real.
+    Distingue mano derecha/izquierda automaticamente via handedness_label."""
     pts = [(int(lm.x * width), int(lm.y * height)) for lm in hand_landmarks.landmark]
+
     for (a, b) in connections:
         p1, p2 = pts[a], pts[b]
-        cv2.line(img, p1, p2, SKELETON_BONE_OUTLINE, SKELETON_BONE_THICKNESS + 3, cv2.LINE_AA)
-        cv2.line(img, p1, p2, SKELETON_BONE_COLOR, SKELETON_BONE_THICKNESS, cv2.LINE_AA)
-        cv2.circle(img, p1, SKELETON_BONE_THICKNESS // 2 + 1, SKELETON_BONE_COLOR, -1, cv2.LINE_AA)
-        cv2.circle(img, p2, SKELETON_BONE_THICKNESS // 2 + 1, SKELETON_BONE_COLOR, -1, cv2.LINE_AA)
-    for p in pts:
-        cv2.circle(img, p, SKELETON_JOINT_RADIUS + 2, SKELETON_BONE_OUTLINE, -1, cv2.LINE_AA)
-        cv2.circle(img, p, SKELETON_JOINT_RADIUS, SKELETON_BONE_COLOR, -1, cv2.LINE_AA)
+        r1 = _bone_joint_radius(a)
+        r2 = _bone_joint_radius(b)
+        draw_bone_segment(img, p1, p2, r1, r2, SKELETON_BONE_COLOR, SKELETON_BONE_OUTLINE)
+
+    # nudillos: se redibujan encima para que las uniones de varios huesos
+    # (ej. la palma, donde confluyen 5 dedos) se vean como una sola
+    # articulacion redondeada en vez de superposiciones raras
+    for idx, p in enumerate(pts):
+        r = _bone_joint_radius(idx)
+        cv2.circle(img, p, r + 2, SKELETON_BONE_OUTLINE, -1, cv2.LINE_AA)
+        cv2.circle(img, p, r, SKELETON_BONE_COLOR, -1, cv2.LINE_AA)
+        # pequeno brillo superior-izquierdo en cada nudillo para dar volumen
+        shade_ellipse(img, (p[0] - r // 3, p[1] - r // 3), (max(1, r // 2), max(1, r // 2)),
+                      (255, 255, 255), alpha=0.25)
+
+    if handedness_label:
+        wrist = pts[0]
+        label = "D" if handedness_label.lower().startswith("right") else "I"
+        draw_text(img, label, (wrist[0] - 6, wrist[1] + 28), scale=0.5,
+                  color=SKELETON_BONE_COLOR, thickness=1)
 
 
 # ----------------------------------------------------------------------------
@@ -824,14 +921,18 @@ DEFAULT_VOLUME_PERCENT = 70
 
 BACKGROUND_MUSIC_FILENAME = "background_music.wav"
 
+# Sonido real (no sintetizado) que se usa como "aullido de fantasma" cuando
+# una mano se mueve. Si este archivo no esta junto al script, el juego cae
+# de forma automatica al aullido de fantasma sintetizado (ghost_howl).
+GHOST_MOVE_SOUND_FILENAME = "ghost_move.wav"
 
-def load_background_music(target_sample_rate=AUDIO_SAMPLE_RATE):
-    """Busca background_music.wav junto a este script y lo carga como un
-    arreglo mono float32 (sin librerias externas, solo el modulo 'wave' de
-    Python). Si no esta el archivo, o no se puede leer, devuelve None y el
-    juego usa su propia ambientacion sintetizada como respaldo."""
+
+def _load_wav_as_float32(filename, target_sample_rate=AUDIO_SAMPLE_RATE):
+    """Busca 'filename' junto a este script y lo carga como un arreglo mono
+    float32 (sin librerias externas, solo el modulo 'wave' de Python).
+    Si no esta el archivo, o no se puede leer, devuelve None."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(script_dir, BACKGROUND_MUSIC_FILENAME)
+    path = os.path.join(script_dir, filename)
     if not os.path.isfile(path):
         return None
     try:
@@ -849,7 +950,7 @@ def load_background_music(target_sample_rate=AUDIO_SAMPLE_RATE):
         elif sampwidth == 4:
             data = np.frombuffer(raw, dtype=np.int32).astype(np.float32) / 2147483648.0
         else:
-            print(f"Aviso: {BACKGROUND_MUSIC_FILENAME} tiene un formato no soportado, uso ambiente sintetizado.")
+            print(f"Aviso: {filename} tiene un formato de audio no soportado.")
             return None
 
         if n_channels > 1:
@@ -864,8 +965,24 @@ def load_background_music(target_sample_rate=AUDIO_SAMPLE_RATE):
 
         return data.astype(np.float32)
     except Exception as exc:
-        print(f"Aviso: no se pudo leer {BACKGROUND_MUSIC_FILENAME} ({exc}), uso ambiente sintetizado.")
+        print(f"Aviso: no se pudo leer {filename} ({exc}).")
         return None
+
+
+def load_background_music(target_sample_rate=AUDIO_SAMPLE_RATE):
+    """Carga background_music.wav. Si no esta, o no se puede leer, devuelve
+    None y el juego usa su propia ambientacion sintetizada como respaldo."""
+    data = _load_wav_as_float32(BACKGROUND_MUSIC_FILENAME, target_sample_rate)
+    if data is None:
+        print(f"Aviso: no hay {BACKGROUND_MUSIC_FILENAME} junto al script, uso ambiente sintetizado.")
+    return data
+
+
+def load_ghost_move_sound(target_sample_rate=AUDIO_SAMPLE_RATE):
+    """Carga ghost_move.wav (aullido real de fantasma para cuando se mueve
+    una mano). Si no esta el archivo, devuelve None y el juego usa el
+    aullido de fantasma sintetizado (ghost_howl) como respaldo."""
+    return _load_wav_as_float32(GHOST_MOVE_SOUND_FILENAME, target_sample_rate)
 
 
 def _tone(freq, duration, amp=0.35, sample_rate=AUDIO_SAMPLE_RATE, fade=0.01):
@@ -1221,6 +1338,12 @@ def main():
     music_data = load_background_music() if audio.enabled else None
     background_img = load_background(CAM_WIDTH, CAM_HEIGHT)
 
+    # Sonido real de fantasma para cuando se mueve una mano. Si no esta el
+    # archivo ghost_move.wav, cae al aullido sintetizado como respaldo.
+    ghost_move_sound = load_ghost_move_sound() if audio.enabled else None
+    if ghost_move_sound is None:
+        ghost_move_sound = sounds.get("ghost_howl")
+
     if music_data is not None:
         ambient_source, ambient_gain = music_data, MUSIC_GAIN
     else:
@@ -1259,7 +1382,15 @@ def main():
     game = Game(base_speed)
     fullscreen = False
     prev_time = time.time()
-    hand_was_visible = False
+
+    # Seguimiento de movimiento de manos para el sonido de fantasma:
+    # cada vez que hay movimiento, se dispara el aullido a intervalos
+    # (no en cada frame, para que no sature).
+    last_hand_center = None
+    hand_moved_since_last_sound = False
+    next_hand_move_sound = 0.0
+    HAND_MOVE_PIXEL_THRESHOLD = 4.0
+    HAND_MOVE_SOUND_INTERVAL = (2.0, 3.2)
 
     try:
         while True:
@@ -1298,16 +1429,34 @@ def main():
 
             hand_points = []
             if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
-                    draw_bone_skeleton(canvas, hand_landmarks, mp_hands.HAND_CONNECTIONS, width, height)
+                handedness_list = results.multi_handedness or []
+                for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                    label = None
+                    if i < len(handedness_list):
+                        label = handedness_list[i].classification[0].label  # "Left" / "Right"
+                    draw_bone_skeleton(canvas, hand_landmarks, mp_hands.HAND_CONNECTIONS, width, height,
+                                       handedness_label=label)
                     for idx in CATCH_LANDMARKS:
                         lm = hand_landmarks.landmark[idx]
                         hand_points.append((lm.x * width, lm.y * height))
 
-            hand_visible_now = len(hand_points) > 0
-            if hand_visible_now and not hand_was_visible and audio.enabled:
-                audio.play(sounds.get("ghost"), gain=SFX_GAIN)
-            hand_was_visible = hand_visible_now
+            # Sonido de fantasma cuando se mueve una mano: se dispara a
+            # intervalos mientras haya movimiento (no en cada frame).
+            if hand_points:
+                cx = sum(p[0] for p in hand_points) / len(hand_points)
+                cy = sum(p[1] for p in hand_points) / len(hand_points)
+                if last_hand_center is not None:
+                    dist = math.hypot(cx - last_hand_center[0], cy - last_hand_center[1])
+                    if dist > HAND_MOVE_PIXEL_THRESHOLD:
+                        hand_moved_since_last_sound = True
+                last_hand_center = (cx, cy)
+            else:
+                last_hand_center = None
+
+            if audio.enabled and hand_moved_since_last_sound and now >= next_hand_move_sound:
+                audio.play(ghost_move_sound, gain=SFX_GAIN)
+                next_hand_move_sound = now + random.uniform(*HAND_MOVE_SOUND_INTERVAL)
+                hand_moved_since_last_sound = False
 
             events = game.update(width, height, hand_points, dt)
             for ev in events:

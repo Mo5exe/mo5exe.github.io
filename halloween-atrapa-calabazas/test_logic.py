@@ -24,6 +24,42 @@ g.draw_mini_frog(frame, 150, 100, 12)
 g.draw_mini_potion(frame, 200, 100, 12, (200, 30, 200))
 print("Dibujo de calabaza / murcielago / fantasma / sombrero / particulas: OK")
 
+
+# 1b) Esqueleto de huesos reales: se dibuja sin excepciones, para mano
+# derecha e izquierda, usando landmarks falsos (no hace falta camara)
+class _FakeLandmark:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+class _FakeHandLandmarks:
+    def __init__(self, points):
+        self.landmark = [_FakeLandmark(x, y) for (x, y) in points]
+
+
+_fake_points = [(0.5 + 0.02 * i, 0.5 - 0.03 * i) for i in range(21)]
+_fake_hand = _FakeHandLandmarks(_fake_points)
+# Topologia estandar de 21 landmarks de MediaPipe Hands (no depende de
+# mp.solutions, que en algunas versiones nuevas de mediapipe no esta
+# disponible -- el juego la toma de mp_hands.HAND_CONNECTIONS en tiempo
+# real con la camara, esto es solo para probar el dibujo sin camara).
+_HAND_CONNECTIONS = [
+    (0, 1), (1, 2), (2, 3), (3, 4),
+    (0, 5), (5, 6), (6, 7), (7, 8),
+    (5, 9), (9, 10), (10, 11), (11, 12),
+    (9, 13), (13, 14), (14, 15), (15, 16),
+    (13, 17), (17, 18), (18, 19), (19, 20),
+    (0, 17),
+]
+g.draw_bone_skeleton(frame, _fake_hand, _HAND_CONNECTIONS, width=1280, height=720,
+                     handedness_label="Right")
+g.draw_bone_skeleton(frame, _fake_hand, _HAND_CONNECTIONS, width=1280, height=720,
+                     handedness_label="Left")
+g.draw_bone_skeleton(frame, _fake_hand, _HAND_CONNECTIONS, width=1280, height=720)
+g.draw_bone_segment(frame, (100, 100), (100, 100), 8, 8, g.SKELETON_BONE_COLOR, g.SKELETON_BONE_OUTLINE)
+print("Esqueleto de huesos reales (derecha/izquierda, sin camara): OK")
+
 width, height = 1280, 720
 
 # 2) Atrapar una calabaza suma puntaje
@@ -118,5 +154,15 @@ if music is not None:
     print(f"Musica de fondo: OK (background_music.wav cargado, {len(music)/g.AUDIO_SAMPLE_RATE:.1f}s)")
 else:
     print("Musica de fondo: no hay background_music.wav junto al script (se usaria el ambiente sintetizado)")
+
+# 12) Sonido real de fantasma por movimiento (ghost_move.wav) si esta presente
+ghost_move = g.load_ghost_move_sound()
+if ghost_move is not None:
+    assert isinstance(ghost_move, np.ndarray) and ghost_move.dtype == np.float32
+    assert np.all(np.isfinite(ghost_move))
+    assert ghost_move.max() <= 1.01 and ghost_move.min() >= -1.01
+    print(f"Sonido de fantasma por movimiento: OK (ghost_move.wav cargado, {len(ghost_move)/g.AUDIO_SAMPLE_RATE:.1f}s)")
+else:
+    print("Sonido de fantasma por movimiento: no hay ghost_move.wav junto al script (se usaria el aullido sintetizado)")
 
 print("\nTODAS LAS PRUEBAS PASARON CORRECTAMENTE")
