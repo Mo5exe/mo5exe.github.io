@@ -111,10 +111,10 @@ MAGIC_COLORS = [
 # Fondo de proyeccion (en vez de mostrar la imagen real de la camara) y
 # colores del esqueleto de manos ("esqueleto de hueso") dibujado sobre ese fondo.
 BACKGROUND_COLOR = (10, 6, 4)            # casi negro, se funde con la pared
-SKELETON_BONE_COLOR = (235, 240, 245)    # blanco hueso
-SKELETON_BONE_OUTLINE = (55, 45, 45)     # contorno oscuro sutil
+SKELETON_BONE_COLOR = (245, 248, 250)    # blanco hueso
+SKELETON_BONE_OUTLINE = (12, 10, 10)     # contorno negro marcado (estilo radiografia)
 SKELETON_BONE_THICKNESS = 5
-SKELETON_JOINT_RADIUS = 7
+SKELETON_JOINT_RADIUS = 8
 
 
 # ----------------------------------------------------------------------------
@@ -816,10 +816,11 @@ def _bone_joint_radius(idx):
     return max(3, int(SKELETON_JOINT_RADIUS * _BONE_JOINT_SCALE.get(idx, 1.0)))
 
 
-def draw_bone_segment(img, p1, p2, r1, r2, color, outline_color, outline_pad=2):
+def draw_bone_segment(img, p1, p2, r1, r2, color, outline_color, outline_pad=3):
     """Dibuja un hueso real entre p1 y p2: abultado (radio r1/r2) en cada
-    punta, angosto en el medio, con un contorno oscuro y un brillo sutil
-    a lo largo del eje para dar sensacion de volumen 3D."""
+    punta, angosto en el medio, con un contorno negro marcado -- estilo
+    grafico de radiografia (blanco y negro, plano, bien delineado), no
+    un dibujo con sombreado 3D suave."""
     p1f = np.array(p1, dtype=np.float32)
     p2f = np.array(p2, dtype=np.float32)
     d = p2f - p1f
@@ -852,33 +853,46 @@ def draw_bone_segment(img, p1, p2, r1, r2, color, outline_color, outline_pad=2):
             a - perp * (shaft_half + pad),
         ], dtype=np.int32)
 
-    # pasada de contorno (mas grande, color oscuro)
+    # pasada de contorno negro (mas grande) -- da el borde marcado tipo
+    # ilustracion de radiografia
     cv2.fillPoly(img, [poly(outline_pad)], outline_color, cv2.LINE_AA)
     cv2.circle(img, p1i, r1 + outline_pad, outline_color, -1, cv2.LINE_AA)
     cv2.circle(img, p2i, r2 + outline_pad, outline_color, -1, cv2.LINE_AA)
 
-    # pasada principal (hueso blanco)
+    # pasada principal (hueso blanco, plano, sin degrade)
     cv2.fillPoly(img, [poly(0)], color, cv2.LINE_AA)
     cv2.circle(img, p1i, r1, color, -1, cv2.LINE_AA)
     cv2.circle(img, p2i, r2, color, -1, cv2.LINE_AA)
 
-    # brillo sutil a lo largo de un borde del hueso, da volumen 3D
-    light_offset = perp * (shaft_half * 0.5)
-    light_a = (a + light_offset).astype(int)
-    light_b = (b + light_offset).astype(int)
-    cv2.line(img, tuple(light_a), tuple(light_b), (255, 255, 255), 1, cv2.LINE_AA)
+    # linea fina en el centro de cada punta, marca la separacion entre
+    # falanges como en una ilustracion de rayos X (no es sombreado 3D)
+    cv2.ellipse(img, p1i, (max(2, r1 // 2), max(2, r1 - 2)), 0, 0, 360, outline_color, 1, cv2.LINE_AA)
+    cv2.ellipse(img, p2i, (max(2, r2 // 2), max(2, r2 - 2)), 0, 0, 360, outline_color, 1, cv2.LINE_AA)
 
-    # sombra sutil del lado opuesto
-    shade_offset = -perp * (shaft_half * 0.55)
-    shade_a = (a + shade_offset).astype(int)
-    shade_b = (b + shade_offset).astype(int)
-    cv2.line(img, tuple(shade_a), tuple(shade_b), (150, 145, 150), 1, cv2.LINE_AA)
+
+def draw_carpal_cluster(img, wrist_pt, away_dir, color, outline_color):
+    """Dibuja un racimo de pequenos huesos del carpo (muneca) justo detras
+    de la muneca, como en una ilustracion de rayos X de mano -- un grupo de
+    circulos irregulares superpuestos, no una sola articulacion redondeada."""
+    wx, wy = wrist_pt
+    ax, ay = away_dir
+    px, py = -ay, ax  # perpendicular
+    offsets = [
+        (0.55, 0.0, 7), (0.85, 0.42, 6), (0.85, -0.42, 6),
+        (1.25, 0.20, 6), (1.25, -0.22, 5), (1.05, 0.0, 5),
+    ]
+    for along, side, r in offsets:
+        cx = int(wx + ax * along * 14 + px * side * 14)
+        cy = int(wy + ay * along * 14 + py * side * 14)
+        cv2.circle(img, (cx, cy), r + 2, outline_color, -1, cv2.LINE_AA)
+        cv2.circle(img, (cx, cy), r, color, -1, cv2.LINE_AA)
 
 
 def draw_bone_skeleton(img, hand_landmarks, connections, width, height, handedness_label=None):
-    """Dibuja la mano completa como un esqueleto de huesos reales (no lineas
-    finas con puntos), siguiendo el tracking de MediaPipe en tiempo real.
-    Distingue mano derecha/izquierda automaticamente via handedness_label."""
+    """Dibuja la mano completa como un esqueleto de huesos reales, estilo
+    ilustracion de radiografia (blanco y negro, plano, bien delineado) --
+    no lineas finas con puntos ni sombreado 3D suave. Sigue el tracking de
+    MediaPipe en tiempo real y distingue mano derecha/izquierda."""
     pts = [(int(lm.x * width), int(lm.y * height)) for lm in hand_landmarks.landmark]
 
     for (a, b) in connections:
@@ -894,14 +908,20 @@ def draw_bone_skeleton(img, hand_landmarks, connections, width, height, handedne
         r = _bone_joint_radius(idx)
         cv2.circle(img, p, r + 2, SKELETON_BONE_OUTLINE, -1, cv2.LINE_AA)
         cv2.circle(img, p, r, SKELETON_BONE_COLOR, -1, cv2.LINE_AA)
-        # pequeno brillo superior-izquierdo en cada nudillo para dar volumen
-        shade_ellipse(img, (p[0] - r // 3, p[1] - r // 3), (max(1, r // 2), max(1, r // 2)),
-                      (255, 255, 255), alpha=0.25)
+
+    # racimo de huesos del carpo detras de la muneca (landmark 0), en
+    # direccion opuesta a la palma (hacia el 9, base del dedo medio)
+    wrist = pts[0]
+    palm_base = pts[9]
+    dx, dy = wrist[0] - palm_base[0], wrist[1] - palm_base[1]
+    dist = math.hypot(dx, dy) or 1.0
+    away_dir = (dx / dist, dy / dist)
+    draw_carpal_cluster(img, wrist, away_dir, SKELETON_BONE_COLOR, SKELETON_BONE_OUTLINE)
 
     if handedness_label:
-        wrist = pts[0]
         label = "D" if handedness_label.lower().startswith("right") else "I"
-        draw_text(img, label, (wrist[0] - 6, wrist[1] + 28), scale=0.5,
+        label_pt = (int(wrist[0] + away_dir[0] * 48 - 6), int(wrist[1] + away_dir[1] * 48 + 6))
+        draw_text(img, label, label_pt, scale=0.55,
                   color=SKELETON_BONE_COLOR, thickness=1)
 
 
